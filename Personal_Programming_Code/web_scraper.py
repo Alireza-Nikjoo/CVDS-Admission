@@ -31,7 +31,7 @@ def scraper(page_counter):
 
     with sync_playwright() as p:
         for pagenumb in range(page_counter):
-            browser = p.chromium.launch(executable_path=r"C:\Program Files\Google\Chrome\Application\chrome.exe", headless=True)
+            browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             page.goto(f"https://divar.ir/s/tehran/car/peugeot/207i?page={pagenumb}")
             page.wait_for_selector("div")
