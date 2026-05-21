@@ -6,12 +6,11 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import OneHotEncoder
 import customtkinter  as ctk
 
-
 def get_data_from_csv(filepath):
     data = pd.read_csv(filepath)
     return data
 
-
+# Convert Columns to numeric types
 data = get_data_from_csv("csvfile.csv")
 data['price'] = data['price'].astype(int)
 data['mileage'] = data['mileage'].astype(int)
@@ -20,33 +19,60 @@ data['year'] = data['year'].astype(int)
 encoder = OneHotEncoder()
 colors_encoded = encoder.fit_transform(data[['color']])
 
-
+# Define features and targets
 X = data[['price']].values  
 y_color = data['color']  
-y_model = data['year'].values  
-y_kilometer = data['mileage'].values 
+y_year = data['year'].values  
+y_mileage = data['mileage'].values 
 
+#Split data for different prediction tasks
 X_train, X_test, y_train_color, y_test_color = train_test_split(X, y_color, test_size=0.2, random_state=42)
-X_train_model, X_test_model, y_train_model, y_test_model = train_test_split(X, y_model, test_size=0.2, random_state=42)
-X_train_km, X_test_km, y_train_km, y_test_km = train_test_split(X, y_kilometer, test_size=0.2, random_state=42)
+X_train_year, X_test_year, y_train_year, y_test_year = train_test_split(X, y_year, test_size=0.2, random_state=42)
+X_train_mileage, X_test_mileage, y_train_mileage, y_test_mileage = train_test_split(X, y_mileage, test_size=0.2, random_state=42)
 
+# Train classifier for predicting car color
 color_classifier = RandomForestClassifier()
 color_classifier.fit(X_train, y_train_color)
 
-model_regressor = RandomForestRegressor()
-model_regressor.fit(X_train_model, y_train_model)
+# Manual implementation of simple linear regression
+def train_linear_regression(X, y):
+    X = X.flatten()
+    
+    mean_x = np.mean(X)
+    mean_y = np.mean(y)
+    
+    numerator = np.sum((X - mean_x) * (y - mean_y))
+    denominator = np.sum((X - mean_x) ** 2)
+    
+    a = numerator / denominator
+    b = mean_y - a * mean_x
+    
+    return a, b
 
-km_regressor = RandomForestRegressor()
-km_regressor.fit(X_train_km, y_train_km)
+# Predict value using learned linear model
+def predict_linear(a, b, price):
+    return a * price + b
 
+
+a_year, b_year = train_linear_regression(X_train_year, y_train_year)
+
+# Train model for predicting mileage
+mileage_regressor = RandomForestRegressor()
+mileage_regressor.fit(X_train_mileage, y_train_mileage)
+
+# Main prediction function
 def predict_car(price):
     input_data = np.array([[price]])
     
     predicted_color = color_classifier.predict(input_data)[0]
-    predicted_model = int(round(model_regressor.predict(input_data)[0]))
-    predicted_kilometer = int(round(km_regressor.predict(input_data)[0]))
     
-    return predicted_color, predicted_model, predicted_kilometer
+    # Use manual linear regression for year prediction
+    predicted_year = int(round(predict_linear(a_year, b_year, price)))
+    
+    # Use RandomForest for mileage prediction
+    predicted_mileage = int(round(mileage_regressor.predict(input_data)[0]))
+    
+    return predicted_color, predicted_year, predicted_mileage
 
 def find_closest_car(price):
     data['price_diff'] = (data['price'] - price).abs()
@@ -65,26 +91,26 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 app = ctk.CTk()
 app.geometry("720x380")
-app.title("MY Program")
+app.title("Car Recommender")
 app.resizable(False,False)
 frame = ctk.CTkFrame(master=app,width=600,height=340)
 frame.grid(pady=20, padx=20)
 label = ctk.CTkLabel(master=frame, text="What is your budget?", font=("Verdana",18))
 label.grid(pady=12, padx=10,row = 0, column =0)
-textbox = ctk.CTkTextbox(master=frame, width=120, height=25, font=("Verdana",18))
+textbox = ctk.CTkTextbox(master=frame, width=200, height=25, font=("Verdana",18))
 textbox.grid(row=0, column=1,padx=(0,30))
 
 def btn_do():
     price = int(textbox.get("0.0","end"))
-    predicted_color, predicted_model, predicted_kilometer = predict_car(price)
+    predicted_color, predicted_year, predicted_mileage = predict_car(price)
     closest_record = find_closest_car(price)
     txtbox1.delete("0.0","end")
     txtbox2.delete("0.0","end")
     txtbox3.delete("0.0","end")
     txtbox4.delete("0.0","end")
     txtbox1.insert("0.0", predicted_color)
-    txtbox2.insert("0.0", predicted_model)
-    txtbox3.insert("0.0", predicted_kilometer)
+    txtbox2.insert("0.0", predicted_year)
+    txtbox3.insert("0.0", predicted_mileage)
     txtbox4.insert("0.0", closest_record)
 
 button = ctk.CTkButton(master=frame, text="Find",command=btn_do,width=75)
